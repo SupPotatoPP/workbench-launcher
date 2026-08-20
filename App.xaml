@@ -1,0 +1,26 @@
+<Application x:Class="WorkbenchLauncher.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#5B67F1"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#182033"/>
+        <SolidColorBrush x:Key="MutedBrush" Color="#6F7789"/>
+        <Style TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/><Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/><Setter Property="Background" Value="#EEF0FF"/>
+            <Setter Property="Foreground" Value="#3E49CC"/><Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="10,8"/><Setter Property="BorderBrush" Value="#DDE1EA"/>
+            <Setter Property="BorderThickness" Value="1"/><Setter Property="Background" Value="White"/>
+        </Style>
+    </Application.Resources>
+</Application>

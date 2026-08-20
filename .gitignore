@@ -1,0 +1,25 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+
+# IDE and user-local settings
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local application data and exports
+config.json
+config.backup.json
+*.zip
+
+# Generated source image; final PNG/ICO are tracked
+Assets/workbench-icon-source.png
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
