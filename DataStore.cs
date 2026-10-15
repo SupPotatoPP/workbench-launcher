@@ -6,7 +6,7 @@ namespace WorkbenchLauncher;
 public sealed class DataStore
 {
     private readonly string _file = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WorkbenchLauncher", "config.json");
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WorkbenchLauncherPreview", "config.json");
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
 
     public LauncherData Load()
@@ -14,6 +14,8 @@ public sealed class DataStore
         try
         {
             if (File.Exists(_file)) return JsonSerializer.Deserialize<LauncherData>(File.ReadAllText(_file), Options) ?? new();
+            var original = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "WorkbenchLauncher", "config.json");
+            if (File.Exists(original)) return JsonSerializer.Deserialize<LauncherData>(File.ReadAllText(original), Options) ?? new();
         }
         catch { }
         return CreateSample();
@@ -33,6 +35,7 @@ public sealed class DataStore
         var data = JsonSerializer.Deserialize<LauncherData>(File.ReadAllText(source), Options)
             ?? throw new InvalidDataException("配置文件内容为空。 ");
         data.Items ??= [];
+        data.FolderSources ??= [];
         return data;
     }
 

@@ -10,9 +10,10 @@
     <ApplicationIcon>Assets\workbench-icon.ico</ApplicationIcon>
     <Product>工作台</Product>
     <Description>个人工作资源启动台</Description>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="verification\**\*.cs" />
     <Resource Include="Assets\workbench-icon.ico" />
     <None Include="Assets\workbench-icon.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

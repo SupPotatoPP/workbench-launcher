@@ -26,6 +26,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _data = _store.Load();
+        _data.Items ??= [];
+        _data.FolderSources ??= [];
+        FolderSync.Refresh(_data);
         if (NormalizeOrdering()) _store.Save(_data);
         ItemsList.ItemsSource = _visible;
         RefreshProjects(); Refresh();
@@ -33,9 +36,7 @@ public partial class MainWindow : Window
 
     private void RefreshProjects()
     {
-        ProjectList.ItemsSource = _data.Items.Where(x => !string.IsNullOrWhiteSpace(x.Project))
-            .GroupBy(x => x.Project).OrderBy(g => g.Min(x => x.CategoryOrder)).ThenBy(g => g.Key)
-            .Select(g => g.Key).ToList();
+        ProjectList.ItemsSource = CategoryService.GetNames(_data);
     }
 
     private void Refresh()
@@ -46,7 +47,7 @@ public partial class MainWindow : Window
         else if (_filter.StartsWith("Project:")) query = query.Where(x => x.Project == _filter[8..]);
         var term = SearchBox.Text.Trim();
         if (term.Length > 0) query = query.Where(x => ($"{x.Name} {x.Target} {x.Project}").Contains(term, StringComparison.OrdinalIgnoreCase));
-        query = query.OrderBy(x => x.CategoryOrder).ThenBy(x => x.SortOrder).ThenBy(x => x.Name);
+        if (_filter != "Recent") query = query.OrderBy(x => x.CategoryOrder).ThenBy(x => x.SortOrder).ThenBy(x => x.Name);
         _visible.Clear(); foreach (var item in query) _visible.Add(item);
         var view = CollectionViewSource.GetDefaultView(ItemsList.ItemsSource);
         view.GroupDescriptions.Clear();
@@ -56,11 +57,15 @@ public partial class MainWindow : Window
             view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LaunchItem.KindLabel)));
         CountText.Text = $"{_visible.Count} 个资源";
         EmptyText.Visibility = _visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyText.Text = _filter.StartsWith("Project:") && _data.FolderSources.Any(x => x.Name == _filter[8..])
+            ? "没有可显示的子文件夹\n仅显示主路径下的第一层文件夹，点击刷新重新读取"
+            : "没有找到资源\n可添加主文件夹，或新增单个资源";
     }
 
     private void Filter_Click(object sender, RoutedEventArgs e)
     {
         _filter = (string)((Button)sender).Tag; ProjectList.SelectedItem = null;
+        SyncFolders();
         PageTitle.Text = _filter switch { "Favorite" => "收藏", "Recent" => "最近使用", _ => "全部资源" }; Refresh();
         UpdateNavigation();
     }
@@ -68,6 +73,7 @@ public partial class MainWindow : Window
     private void ProjectList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ProjectList.SelectedItem is not string project) return;
+        SyncFolders();
         _filter = "Project:" + project; PageTitle.Text = project; Refresh(); UpdateNavigation();
     }
 
@@ -87,7 +93,7 @@ public partial class MainWindow : Window
         {
             var imported = _store.Import(dialog.FileName);
             if (MessageBox.Show(this, $"将导入 {imported.Items.Count} 个资源并替换当前配置。\n当前配置会自动备份，是否继续？", "导入配置", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-            _data = imported; NormalizeOrdering(); _store.Save(_data);
+            _data = imported; SyncFolders(); NormalizeOrdering(); _store.Save(_data);
             _filter = "All"; ProjectList.SelectedItem = null;
             PageTitle.Text = "全部资源"; RefreshProjects(); Refresh(); UpdateNavigation();
         }
@@ -207,7 +213,8 @@ public partial class MainWindow : Window
         var current = e.GetPosition(ProjectList);
         if (Math.Abs(current.X - _categoryDragStart.X) < SystemParameters.MinimumHorizontalDragDistance && Math.Abs(current.Y - _categoryDragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
         var container = FindParent<ListBoxItem>(e.OriginalSource as DependencyObject);
-        if (container?.DataContext is string category) DragDrop.DoDragDrop(container, new DataObject(CategoryDragFormat, category), DragDropEffects.Move);
+        if (container?.DataContext is string category && category != CategoryService.PinnedCategory)
+            DragDrop.DoDragDrop(container, new DataObject(CategoryDragFormat, category), DragDropEffects.Move);
     }
 
     private void ProjectList_Drop(object sender, DragEventArgs e)
@@ -217,9 +224,11 @@ public partial class MainWindow : Window
         var targetContainer = FindParent<ListBoxItem>(e.OriginalSource as DependencyObject);
         var target = targetContainer?.DataContext as string;
         if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(target) || source == target) return;
-        var categories = _data.Items.GroupBy(x => x.Project).OrderBy(g => g.Min(x => x.CategoryOrder)).ThenBy(g => g.Key).Select(g => g.Key).ToList();
-        categories.Remove(source); categories.Insert(categories.IndexOf(target), source);
+        if (source == CategoryService.PinnedCategory) return;
+        var categories = ProjectList.Items.Cast<string>().ToList();
+        categories.Remove(source); categories.Insert(Math.Max(1, categories.IndexOf(target)), source);
         for (var i = 0; i < categories.Count; i++) foreach (var item in _data.Items.Where(x => x.Project == categories[i])) item.CategoryOrder = i;
+        foreach (var folder in _data.FolderSources) folder.CategoryOrder = categories.IndexOf(folder.Name);
         SaveAndRefresh(); ProjectList.SelectedItem = source;
     }
 
@@ -263,11 +272,14 @@ public partial class MainWindow : Window
     {
         var changed = false;
         var originalIndexes = _data.Items.Select((item, index) => (item, index)).ToDictionary(x => x.item.Id, x => x.index);
-        var categories = _data.Items.GroupBy(x => x.Project)
-            .OrderBy(g => g.Min(x => x.CategoryOrder)).ThenBy(g => g.Key, StringComparer.CurrentCultureIgnoreCase).ToList();
+        var categories = CategoryService.GetNames(_data);
         for (var categoryIndex = 0; categoryIndex < categories.Count; categoryIndex++)
         {
-            var orderedItems = categories[categoryIndex].OrderBy(x => x.SortOrder).ThenBy(x => originalIndexes[x.Id]).ToList();
+            foreach (var source in _data.FolderSources.Where(x => x.Name == categories[categoryIndex]))
+            {
+                if (source.CategoryOrder != categoryIndex) { source.CategoryOrder = categoryIndex; changed = true; }
+            }
+            var orderedItems = _data.Items.Where(x => x.Project == categories[categoryIndex]).OrderBy(x => x.SortOrder).ThenBy(x => originalIndexes[x.Id]).ToList();
             for (var itemIndex = 0; itemIndex < orderedItems.Count; itemIndex++)
             {
                 var item = orderedItems[itemIndex];
@@ -317,6 +329,14 @@ public partial class MainWindow : Window
             AddMenu(menu, "打开最新 bin 目录", () => Run(() => LauncherService.OpenBinDirectory(item)));
         }
         menu.Items.Add(new Separator());
+        if (item.SourceFolderId != null)
+        {
+            AddMenu(menu, "由主文件夹自动生成（刷新同步）", () => { SyncFolders(); SaveAndRefresh(); });
+            menu.PlacementTarget = ItemsList;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+            menu.IsOpen = true;
+            return;
+        }
         AddMenu(menu, "编辑", () => { if (new EditItemWindow(item) { Owner = this }.ShowDialog() == true) SaveAndRefresh(); });
         AddMenu(menu, "删除", () => { if (MessageBox.Show(this, $"确定删除“{item.Name}”吗？", "删除资源", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { _data.Items.Remove(item); SaveAndRefresh(); } });
         menu.PlacementTarget = ItemsList;
@@ -348,5 +368,5 @@ public partial class MainWindow : Window
 
     private static void AddMenu(ContextMenu menu, string name, Action action) { var entry = new MenuItem { Header = name }; entry.Click += (_, _) => action(); menu.Items.Add(entry); }
     private void Run(Action action) { try { action(); } catch (Exception ex) { MessageBox.Show(this, ex.Message, "操作失败", MessageBoxButton.OK, MessageBoxImage.Warning); } }
-    private void SaveAndRefresh() { _store.Save(_data); RefreshProjects(); Refresh(); }
+    private void SaveAndRefresh() { NormalizeOrdering(); _store.Save(_data); RefreshProjects(); Refresh(); }
 }

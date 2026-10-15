@@ -7,6 +7,7 @@ public enum ResourceKind { Folder, Solution, Document, Website, Application, Adm
 public sealed class LaunchItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid? SourceFolderId { get; set; }
     public string Name { get; set; } = "新资源";
     public ResourceKind Kind { get; set; }
     public string Target { get; set; } = "";
@@ -49,4 +50,13 @@ public sealed class LaunchItem
 public sealed class LauncherData
 {
     public List<LaunchItem> Items { get; set; } = [];
+    public List<FolderSource> FolderSources { get; set; } = [];
+}
+
+public sealed class FolderSource
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public string Path { get; set; } = "";
+    public int CategoryOrder { get; set; }
 }

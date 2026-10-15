@@ -17,8 +17,8 @@
                     <Button x:Name="RecentButton" Content="◷  最近使用" Click="Filter_Click" Tag="Recent" HorizontalContentAlignment="Left" Background="Transparent" Foreground="#C5CADB"/>
                 </StackPanel>
                 <StackPanel Grid.Row="2" Margin="0,34,0,0">
-                    <TextBlock Text="分类" Foreground="#737C99" FontSize="12" Margin="10,0,0,10"/>
-                    <ListBox x:Name="ProjectList" SelectionChanged="ProjectList_SelectionChanged" Background="Transparent" BorderThickness="0" Foreground="#C5CADB" AllowDrop="True" PreviewMouseLeftButtonDown="ProjectList_PreviewMouseLeftButtonDown" PreviewMouseMove="ProjectList_PreviewMouseMove" Drop="ProjectList_Drop">
+                    <Button Content="＋ 添加主文件夹" Click="AddFolderSource_Click" Margin="0,0,0,10" ToolTip="选择主路径，自动显示第一层子文件夹"/><TextBlock Text="分类" Foreground="#737C99" FontSize="12" Margin="10,0,0,10"/>
+                    <ListBox x:Name="ProjectList" PreviewMouseRightButtonDown="ProjectList_PreviewMouseRightButtonDown" SelectionChanged="ProjectList_SelectionChanged" Background="Transparent" BorderThickness="0" Foreground="#C5CADB" AllowDrop="True" PreviewMouseLeftButtonDown="ProjectList_PreviewMouseLeftButtonDown" PreviewMouseMove="ProjectList_PreviewMouseMove" Drop="ProjectList_Drop">
                         <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem">
                             <Setter Property="Margin" Value="0,0,0,6"/><Setter Property="Padding" Value="0"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
@@ -39,9 +39,9 @@
                     <TextBlock x:Name="CountText" Text="集中管理你的项目入口" Foreground="{StaticResource MutedBrush}" Margin="0,6,0,0"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button Content="导入" Height="36" Padding="11,0" Background="#E8EAF0" Foreground="#555E70" Click="Import_Click"/>
+                    <Button Content="刷新" Height="36" Click="RefreshFolders_Click" Margin="0,0,6,0"/><Button Content="导入" Height="36" Padding="11,0" Background="#E8EAF0" Foreground="#555E70" Click="Import_Click"/>
                     <Button Content="导出" Height="36" Padding="11,0" Margin="6,0,0,0" Background="#E8EAF0" Foreground="#555E70" Click="Export_Click"/>
-                    <TextBox x:Name="SearchBox" Width="200" Height="36" Margin="8,0,0,0" VerticalContentAlignment="Center" TextChanged="SearchBox_TextChanged" ToolTip="搜索名称、路径或分类"/>
+                    <TextBox x:Name="SearchBox" Width="140" Height="36" Margin="8,0,0,0" VerticalContentAlignment="Center" TextChanged="SearchBox_TextChanged" ToolTip="搜索名称、路径或分类"/>
                     <Button Content="＋ 新增资源" Height="36" Padding="14,0" VerticalAlignment="Center" Margin="12,0,0,0" Background="{StaticResource AccentBrush}" Foreground="White" Click="Add_Click"/>
                 </StackPanel>
             </Grid>

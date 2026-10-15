@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.0.0"
+    [string]$Version = "1.1.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,11 +13,14 @@ dotnet publish (Join-Path $projectRoot "WorkbenchLauncher.csproj") `
     -c Release `
     -r win-x64 `
     --self-contained true `
+    -p:Version=$Version `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:DebugType=None `
     -p:DebugSymbols=false `
     -o $publishRoot
+
+if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed: $LASTEXITCODE" }
 
 if (Test-Path $stagingRoot) { Remove-Item -LiteralPath $stagingRoot -Recurse -Force }
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
