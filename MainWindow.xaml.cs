@@ -31,6 +31,7 @@ public partial class MainWindow : Window
         FolderSync.Refresh(_data);
         if (NormalizeOrdering()) _store.Save(_data);
         ItemsList.ItemsSource = _visible;
+        DetailsList.ItemsSource = _visible;
         RefreshProjects(); Refresh();
     }
 
@@ -47,13 +48,21 @@ public partial class MainWindow : Window
         else if (_filter.StartsWith("Project:")) query = query.Where(x => x.Project == _filter[8..]);
         var term = SearchBox.Text.Trim();
         if (term.Length > 0) query = query.Where(x => ($"{x.Name} {x.Target} {x.Project}").Contains(term, StringComparison.OrdinalIgnoreCase));
-        if (_filter != "Recent") query = query.OrderBy(x => x.CategoryOrder).ThenBy(x => x.SortOrder).ThenBy(x => x.Name);
-        _visible.Clear(); foreach (var item in query) _visible.Add(item);
+        if (_filter != "Recent") query = ResourcePresentation.Order(query, _data);
+        var selectedId = (ActiveItemsControl.SelectedItem as LaunchItem)?.Id;
+        _visible.Clear();
+        foreach (var item in query)
+        {
+            if (_data.UseListView) ResourcePresentation.RefreshMetadata(item);
+            _visible.Add(item);
+        }
+        UpdatePresentation();
+        ActiveItemsControl.SelectedItem = _visible.FirstOrDefault(x => x.Id == selectedId);
         var view = CollectionViewSource.GetDefaultView(ItemsList.ItemsSource);
         view.GroupDescriptions.Clear();
-        if (_filter == "All")
+        if (!_data.UseListView && _filter == "All")
             view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LaunchItem.Project)));
-        else if (_filter.StartsWith("Project:"))
+        else if (!_data.UseListView && _filter.StartsWith("Project:"))
             view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LaunchItem.KindLabel)));
         CountText.Text = $"{_visible.Count} 个资源";
         EmptyText.Visibility = _visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -167,8 +176,9 @@ public partial class MainWindow : Window
             MessageBox.Show(this, "当前页面按资源类型分组，卡片只能在同一类型内调整顺序。", "无法插入");
             return;
         }
-        var sourceIndexes = _data.Items.Select((item, index) => (item, index)).ToDictionary(x => x.item.Id, x => x.index);
-        var categoryItems = _data.Items.Where(x => x.Project == source.Project).OrderBy(x => x.SortOrder).ThenBy(x => sourceIndexes[x.Id]).ToList();
+        var categoryItems = ResourcePresentation.Order(_data.Items.Where(x => x.Project == source.Project), _data).ToList();
+        var folderSource = _data.FolderSources.FirstOrDefault(x => x.Name == source.Project);
+        if (folderSource != null) folderSource.UseManualOrder = true;
         categoryItems.Remove(source);
         var insertIndex = categoryItems.IndexOf(target);
         var pointer = e.GetPosition(targetContainer!);
@@ -309,7 +319,7 @@ public partial class MainWindow : Window
     {
         var container = FindParent<ListBoxItem>(e.OriginalSource as DependencyObject);
         if (container?.DataContext is not LaunchItem item) return;
-        ItemsList.SelectedItem = item;
+        if (sender is ListBox list) list.SelectedItem = item;
         ShowContextMenu(item);
         e.Handled = true;
     }
@@ -332,14 +342,14 @@ public partial class MainWindow : Window
         if (item.SourceFolderId != null)
         {
             AddMenu(menu, "由主文件夹自动生成（刷新同步）", () => { SyncFolders(); SaveAndRefresh(); });
-            menu.PlacementTarget = ItemsList;
+            menu.PlacementTarget = ActiveItemsControl;
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
             menu.IsOpen = true;
             return;
         }
         AddMenu(menu, "编辑", () => { if (new EditItemWindow(item) { Owner = this }.ShowDialog() == true) SaveAndRefresh(); });
         AddMenu(menu, "删除", () => { if (MessageBox.Show(this, $"确定删除“{item.Name}”吗？", "删除资源", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { _data.Items.Remove(item); SaveAndRefresh(); } });
-        menu.PlacementTarget = ItemsList;
+        menu.PlacementTarget = ActiveItemsControl;
         menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
         menu.IsOpen = true;
     }
@@ -353,7 +363,7 @@ public partial class MainWindow : Window
             SortOrder = _data.Items.Where(x => x.Project == source.Project).Select(x => x.SortOrder).DefaultIfEmpty().Max() + 1,
             CategoryOrder = source.CategoryOrder
         };
-        _data.Items.Add(copy); SaveAndRefresh(); ItemsList.SelectedItem = copy;
+        _data.Items.Add(copy); SaveAndRefresh(); ActiveItemsControl.SelectedItem = copy;
     }
 
     private void UpdateNavigation()

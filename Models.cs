@@ -18,6 +18,8 @@ public sealed class LaunchItem
     public int SortOrder { get; set; }
     public int CategoryOrder { get; set; }
     public DateTime? LastOpened { get; set; }
+    [JsonIgnore] public DateTime? ModifiedAt { get; set; }
+    [JsonIgnore] public string ModifiedAtLabel => ModifiedAt?.ToString("yyyy/MM/dd HH:mm") ?? "—";
     [JsonIgnore] public string KindLabel => Kind switch
     {
         ResourceKind.Folder => "文件夹", ResourceKind.Solution => "VS 解决方案",
@@ -51,6 +53,7 @@ public sealed class LauncherData
 {
     public List<LaunchItem> Items { get; set; } = [];
     public List<FolderSource> FolderSources { get; set; } = [];
+    public bool UseListView { get; set; }
 }
 
 public sealed class FolderSource
@@ -58,5 +61,7 @@ public sealed class FolderSource
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public string Path { get; set; } = "";
+    public bool NameDescending { get; set; }
+    public bool UseManualOrder { get; set; }
     public int CategoryOrder { get; set; }
 }
